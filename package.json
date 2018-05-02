@@ -1,0 +1,26 @@
+{
+  "name": "mirrored",
+  "version": "0.0.1",
+  "description": "Automatic web-socket exposure for easy remote code execution",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf dist/",
+    "build": "npm run clean & .\\node_modules\\.bin\\tsc"
+  },
+  "author": {
+    "name": "Keith Chester",
+    "email": "kchester@thisisfusion.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "get-port": "^3.2.0",
+    "node-uuid": "^1.4.8",
+    "ws": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/get-port": "^3.2.0",
+    "@types/node-uuid": "0.0.28",
+    "@types/ws": "^4.0.2",
+    "typescript": "^2.8.3"
+  }
+}
