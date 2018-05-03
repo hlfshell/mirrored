@@ -1,14 +1,10 @@
-import * as WebSocket from 'ws';
 import { v4 } from 'node-uuid';
 
-import { Options } from '../interfaces/Options';
 import { FunctionCall } from "../interfaces/FunctionCall";
 import { Attribute } from "../interfaces/Attribute";
 
 export class MirrorWrapper {
 
-    private websocket : WebSocket;
-    
     public core : any;
 
     private functions: string[];
@@ -33,13 +29,13 @@ export class MirrorWrapper {
         });
     }
 
-    private getAllFunctionNames() : string[]{
+    public getAllFunctionNames() : string[]{
         let properties = Object.getOwnPropertyNames(this.core).concat(Object.getOwnPropertyNames(this.core.__proto__));
 
         return properties.filter(attr => typeof this.core[attr] == "function" );
     }
 
-    private getAllAttributeNames() : string[]{
+    public getAllAttributeNames() : string[]{
         let properties = Object.getOwnPropertyNames(this.core).concat(Object.getOwnPropertyNames(this.core.__proto__));
 
         return properties.filter(attr => typeof this.core[attr] != "function" );
@@ -66,6 +62,14 @@ export class MirrorWrapper {
             this.attributesHandler[attr.key] = attr;
         else if(currentAttr.lastUpdated < attr.lastUpdated)
             this.attributesHandler[attr.key] = attr;
+    }
+
+    public getAttributes() : Attribute[] {
+        let attributes : Attribute[] = [];
+        for(var key in this.attributesHandler){
+            attributes.push(this.attributesHandler[key]);
+        };
+        return attributes;
     }
 
     public async executeFunction(call : FunctionCall) : Promise<any> {
