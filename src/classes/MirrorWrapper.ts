@@ -5,6 +5,8 @@ import { Attribute } from "../interfaces/Attribute";
 
 export class MirrorWrapper {
 
+    public id : string;
+
     public core : any;
 
     private functions: string[];
@@ -14,6 +16,8 @@ export class MirrorWrapper {
 
     constructor(core : any){
         this.core = core;
+        
+        this.id = v4();
 
         this.functions = this.getAllFunctionNames();
         this.attributes = this.getAllAttributeNames();
@@ -68,6 +72,14 @@ export class MirrorWrapper {
         let attributes : Attribute[] = [];
         for(var key in this.attributesHandler){
             attributes.push(this.attributesHandler[key]);
+        };
+        return attributes;
+    }
+
+    public getAttributeValues(): Object {
+        let attributes : any = {};
+        for(var key in this.attributesHandler){
+            attributes[key] = this.getAttributeValue(key);
         };
         return attributes;
     }

@@ -1,5 +1,7 @@
 export interface Message {
-    Type: string,
-    Target?: string | null,
-    Payload: any | null
+    id?: string,
+    type: string,
+    target?: string,
+    responseTo?: string, 
+    payload?: any
 }

@@ -8,12 +8,14 @@ import { Attribute } from "../interfaces/Attribute";
 import { FunctionCall } from "../interfaces/FunctionCall";
 import { Message } from "../interfaces/Message";
 import { ConnectionHandler } from "../interfaces/ConnectionHandler";
+import { MirroredDescriptior } from "../interfaces/MirroredDescriptor";
+import { FunctionResult } from "../interfaces/FunctionResult";
 
 export class MirrorHost {
 
     private wss : WebSocket.Server;
     
-    private mirrored : { [key: string] : MirrorWrapper };
+    private mirroredHandler : { [key: string] : MirrorWrapper };
 
     private connections : { [key: string] : WebSocket }
 
@@ -59,57 +61,106 @@ export class MirrorHost {
 
         //Handle incoming messages
         conn.on('message', (data : Message) =>{
-            this.handleIncomingMsg(data);
+            this.handleIncomingMsg(id, data);
         });
 
         //Notify of all mirrored objects
-        Object.keys(this.mirrored).forEach(mirroredId =>{
+        Object.keys(this.mirroredHandler).forEach(mirroredId =>{
             this.sendNewMirrored(id, mirroredId);
         });
     }
 
-    private sendMessage(connectionId : string, message : Message) : void {
+    public mirror(core : any) : void {
+        let mirrored = new MirrorWrapper(core);
+        this.mirroredHandler[mirrored.id] = mirrored;
 
+        this.broadcastNewMirrored(mirrored.id);
+    }
+
+    private sendMessage(connectionId : string, message : Message) : void {
+        let connection = this.connections[connectionId];
+        if(!connection) return;
+
+        if(!message.id) message.id = v4();
+
+        let parsedMessage;
+        try {
+            parsedMessage = JSON.stringify(message);
+        } catch(err){
+            //Do something? for now, stop!
+            return;
+        }
+
+        connection.send(parsedMessage);
     }
 
     private sendNewMirrored(connectionId : string, mirroredId : string) : void {
-        let mirrorered : MirrorWrapper = this.getMirroredById(mirroredId);
+        let mirrorered : MirrorWrapper = this.mirroredHandler[mirroredId];
 
         let message : Message = {
-            Type: "Mirrored",
-            Payload: {
+            type: "Mirrored",
+            payload: <MirroredDescriptior> {
                 id: mirroredId,
                 functions: mirrorered.getAllFunctionNames(),
                 attributes: mirrorered.getAttributes()
             }
         }
+
+        this.sendMessage(connectionId, message);
+    }
+    
+    private broadcastNewMirrored(mirroredId : string){
+        Object.keys(this.connections).forEach(connectionId =>{
+            this.sendNewMirrored(connectionId, mirroredId);
+        });
     }
 
-    private handleIncomingMsg(msg : Message) : void {
-        switch(msg.Type){
+    private handleIncomingMsg(connectionId : string, msg : Message) : void {
+        switch(msg.type){
             case "Ping":
-                this.handlePong(msg);
+                this.handlePong(connectionId, msg);
             case "Authenticate":
-                this.handleAuthentication(msg)
+                this.handleAuthentication(connectionId, msg)
             case "Execute":
-                this.handleExecution(msg);
+                this.handleExecution(connectionId, msg);
         }
     }
 
-    private handlePong(msg : Message) : void {
+    private handlePong(connectionId : string, msg : Message) : void {
 
     }
 
-    private handleAuthentication(msg : Message) : void {
+    private handleAuthentication(connectionId : string, msg : Message) : void {
 
     }
 
-    private handleExecution(msg : Message) : void {
-        let target = this.getMirroredById(msg.Target);
-    }
-    
-    public getMirroredById(id : string) : MirrorWrapper {
-        return null;
+    private async handleExecution(fromConnection : string, msg : Message) : Promise<void> {
+        let target = this.mirroredHandler[msg.target];
+        let execution : FunctionCall = msg.payload;
+
+        let responseMessage : Message = {
+            type: "ExecutionResponse",
+            responseTo: msg.id,
+            payload: <FunctionResult> {
+                success: false,
+                result: null,
+                attributes: []
+            }
+        }
+     
+        try {
+            responseMessage.payload.result = await target.executeFunction(execution);
+
+            responseMessage.payload.attributes = target.getAttributeValues();
+            responseMessage.payload.success = true;
+
+            this.sendMessage(fromConnection, responseMessage)
+        } catch(err){
+            //Something has gone wrong - report back that it all went bad!
+            responseMessage.payload.success = false;
+            responseMessage.payload.attributes = target.getAttributeValues();
+            this.sendMessage(fromConnection, responseMessage);
+        }
     }
 
 }
